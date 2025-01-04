@@ -11,7 +11,8 @@ def extract_intent(user_input):
         "删除信息": ["删除", "移除"],
         "计算": ["计算", "求值"],
         "问答": ["今天", "喜欢", "几", "什么"],
-        "问候": ["你好", "您好", "嗨", "Hello"]
+        "问候": ["你好", "您好", "嗨", "Hello"],
+        "未知问题": ["未知问题"]  # 为未知问题添加识别关键词
     }
 
     # 遍历意图，尝试匹配关键词
@@ -33,6 +34,45 @@ def record_unknown_question(user_question):
     conn.commit()
     conn.close()
 
+def handle_view_information(key):
+    """
+    处理查看信息的逻辑
+    """
+    if key == "未知问题":
+        questions = DatabaseUtils.get_all_unknown_questions()
+        if questions:
+            print("以下是所有未知问题：")
+            for question in questions:
+                print(f"ID: {question[0]}, 问题: {question[1]}, 创建时间: {question[2]}")
+        else:
+            print("当前没有未知问题。")
+    elif key:
+        value = DatabaseUtils.get_user_data(key)
+        if value:
+            print(f"你的{key}是：{value}")
+        else:
+            print(f"我没有找到关于{key}的信息。")
+    else:
+        print("请输入要查看的具体内容，例如：查看名字")
+
+def handle_unknown_question(intent, key):
+    """
+    处理未知问题的删除和更新
+    """
+    if intent == "删除信息":
+        try:
+            question_id = int(key.split()[1])
+            DatabaseUtils.delete_unknown_question_by_id(question_id)
+        except (IndexError, ValueError):
+            print("请输入有效的未知问题 ID，例如：删除未知问题 1")
+    elif intent == "更新信息":
+        try:
+            question_id = int(key.split()[1])
+            answer = input(f"请输入未知问题 ID {question_id} 的答案：")
+            DatabaseUtils.move_unknown_question_to_knowledge_base(question_id, answer)
+        except (IndexError, ValueError):
+            print("请输入有效的未知问题 ID，例如：更新未知问题 1")
+
 # 主程序
 if __name__ == "__main__":
     DatabaseUtils.initialize_knowledge_base()  # 初始化知识库
@@ -46,27 +86,27 @@ if __name__ == "__main__":
 
         # 使用改进的意图解析
         intent, key = extract_intent(user_input)
+        print(f"调试信息 - 意图: {intent}, 关键字: {key}")  # 调试信息
 
         if intent == "查看信息":
-            if key:  # 处理具体字段
-                value = DatabaseUtils.get_user_data(key)
-                if value:
-                    print(f"你的{key}是：{value}")
-                else:
-                    print(f"我没有找到关于{key}的信息。")
-            else:
-                print("请输入要查看的具体内容，例如：查看名字")
+            handle_view_information(key)
+
+        elif key.startswith("未知问题"):
+            handle_unknown_question(intent, key)
+
         elif intent == "更新信息":
             try:
                 key, value = user_input.split("是")[0][2:].strip(), user_input.split("是")[1].strip()
                 DatabaseUtils.update_user_data(key, value)
             except IndexError:
                 print("更新信息格式错误，请输入类似‘更新爱好是绘画’的命令！")
+
         elif intent == "删除信息":
             if key:
                 DatabaseUtils.delete_user_data(key)
             else:
                 print("请输入要删除的具体内容，例如：删除名字")
+
         elif intent == "计算":
             expression = key
             try:
@@ -74,6 +114,7 @@ if __name__ == "__main__":
                 print(f"计算结果是：{result}")
             except Exception as e:
                 print(f"无法计算表达式。错误：{e}")
+
         elif intent == "问答":
             answer = DatabaseUtils.get_best_match_with_options(user_input)
             if answer == "抱歉，我不太明白你的意思。":
@@ -81,10 +122,9 @@ if __name__ == "__main__":
                 print("抱歉，我还不知道这个问题的答案，但我已经记录下来了。")
             else:
                 print(answer)
+
         elif intent == "问候":
             print("你好呀！很高兴见到你！")
+
         else:
             print("抱歉，我不太明白你的意思呢。")
-
-
-

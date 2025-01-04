@@ -99,3 +99,45 @@ class DatabaseUtils:
         }
         for question, answer in predefined_questions.items():
             DatabaseUtils.insert_into_knowledge_base(question, answer)
+            
+    @staticmethod
+    def get_all_unknown_questions():
+        # 获取所有未知问题
+        conn = DatabaseUtils.get_database_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, question, created_at FROM unknown_questions")
+        questions = cursor.fetchall()
+        conn.close()
+        return questions
+
+    @staticmethod
+    def delete_unknown_question_by_id(question_id):
+        # 根据 ID 删除未知问题
+        conn = DatabaseUtils.get_database_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM unknown_questions WHERE id = ?", (question_id,))
+        conn.commit()
+        conn.close()
+        print(f"未知问题 ID 为 {question_id} 的记录已删除！")
+        
+    @staticmethod
+    def move_unknown_question_to_knowledge_base(question_id, answer):
+        # 将未知问题移到知识库
+        conn = DatabaseUtils.get_database_connection()
+        cursor = conn.cursor()
+        # 查询问题
+        cursor.execute("SELECT question FROM unknown_questions WHERE id = ?", (question_id,))
+        question = cursor.fetchone()
+        if question:
+            # 添加到知识库
+            cursor.execute("""
+                INSERT INTO knowledge_base (question, answer)
+                VALUES (?, ?)
+            """, (question[0], answer))
+            # 删除未知问题
+            cursor.execute("DELETE FROM unknown_questions WHERE id = ?", (question_id,))
+            conn.commit()
+            print(f"问题 '{question[0]}' 已添加答案，并移至知识库！")
+        else:
+            print(f"未知问题 ID 为 {question_id} 的记录不存在。")
+        conn.close()
