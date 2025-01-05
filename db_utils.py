@@ -56,7 +56,7 @@ class DatabaseUtils:
 
         # 提取所有问题文本
         question_texts = [q[0] for q in questions]
-        matches = process.extract(user_question, question_texts, limit=3)  # 获取三个最接近的问题
+        matches = process.extract(user_question, question_texts, limit=5)  # 获取三个最接近的问题
 
         if matches[0][1] > 80:  # 高可信度直接返回答案
             for question, answer in questions:
@@ -67,6 +67,7 @@ class DatabaseUtils:
             print("以下是可能的问题，请选择：")
             for idx, (match, score) in enumerate(matches):
                 print(f"{idx + 1}. {match} (匹配度：{score}%)")
+            print(f"{len(matches) + 1}. 不在以上选项中，标记为未知问题")  # 增加“未知问题”选项
 
             while True:
                 choice = input("请输入对应的序号（输入 0 退出）：")
@@ -79,6 +80,10 @@ class DatabaseUtils:
                         for question, answer in questions:
                             if question == selected_question:
                                 return answer
+                    elif choice == len(matches) + 1:
+                    # 标记为未知问题并存储
+                        DatabaseUtils.record_unknown_question(user_question)
+                        return "问题已存储为未知问题，感谢您的反馈！"
                 print("输入无效，请输入有效的序号。")
         else:
             return "抱歉，我无法理解你的问题。"
@@ -108,6 +113,17 @@ class DatabaseUtils:
         for question, answer in predefined_questions.items():
             DatabaseUtils.insert_into_knowledge_base(question, answer)
             
+    @staticmethod
+    def record_unknown_question(user_question):
+        conn = DatabaseUtils.get_database_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT OR IGNORE INTO unknown_questions (question)
+            VALUES (?)
+        """, (user_question,))
+        conn.commit()
+        conn.close()
+    
     @staticmethod
     def get_all_unknown_questions():
         # 获取所有未知问题

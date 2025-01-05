@@ -6,14 +6,17 @@ def extract_intent(user_input):
     根据用户输入识别意图，并尝试提取具体关键字段
     """
     intents = {
-        "查看信息": ["查看", "查询"],
-        "更新信息": ["更新", "设置", "记住"],
-        "删除信息": ["删除", "移除"],
-        "计算": ["计算", "求值"],
-        "问答": ["今天", "喜欢", "几", "什么"],
-        "问候": ["你好", "您好", "嗨", "Hello"],
-        "未知问题": ["未知问题"],  # 为未知问题添加识别关键词
-        "帮助": ["帮助", "功能", "指南"]
+    
+    "查看信息": ["查看", "查询", "查找", "搜索", "获取", "找"],
+    "更新信息": ["更新", "设置", "记住", "修改", "保存", "变更"],
+    "删除信息": ["删除", "移除", "清除", "去掉", "丢弃"],
+    "计算": ["计算", "求值", "算一下", "求解", "多少"],
+    "问答": ["今天", "喜欢", "几", "什么", "为何", "为什么", "怎么", "如何", "意义", "定义","哪","谁","啥","原因"],
+    "问候": ["你好", "您好", "嗨", "Hello", "哈喽", "早上好", "晚上好", "下午好", "在吗"],
+    "未知问题": ["未知问题"],
+    "帮助": ["帮助", "功能", "指南",  "使用说明"]
+
+
     }
 
     # 遍历意图，尝试匹配关键词
@@ -24,16 +27,6 @@ def extract_intent(user_input):
                 remaining_text = user_input.replace(keyword, "").strip()
                 return intent, remaining_text
     return "未知", ""
-
-def record_unknown_question(user_question):
-    conn = DatabaseUtils.get_database_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT OR IGNORE INTO unknown_questions (question)
-        VALUES (?)
-    """, (user_question,))
-    conn.commit()
-    conn.close()
 
 def handle_view_information(key):
     """
@@ -119,7 +112,7 @@ if __name__ == "__main__":
             answer = DatabaseUtils.get_best_match_with_options(user_input)
             if answer == "抱歉，我无法理解你的问题。":
                 print("我暂时无法回答这个问题，但我已经记录下来啦！")
-                record_unknown_question(user_input)
+                DatabaseUtils.record_unknown_question(user_input)
             else:
                 print(answer)
 
