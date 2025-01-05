@@ -12,7 +12,7 @@ class DatabaseUtils:
 
     @staticmethod
     def get_user_data(key):
-        # 查询用户数据
+        # 查询用户
         conn = DatabaseUtils.get_database_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT value FROM user_data WHERE key = ?", (key,))
