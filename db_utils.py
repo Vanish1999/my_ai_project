@@ -61,20 +61,27 @@ class DatabaseUtils:
             for question, answer in questions:
                 if question == matches[0][0]:
                     return answer
+
         elif matches[0][1] > 50:  # 中等可信度返回选项
             print("以下是可能的问题，请选择：")
             for idx, (match, score) in enumerate(matches):
-                print(f"{idx + 1}. {match} (可信度：{score}%)")
-            choice = input("请输入对应的序号：")
-            if choice.isdigit() and 1 <= int(choice) <= len(matches):
-                selected_question = matches[int(choice) - 1][0]
-                for question, answer in questions:
-                    if question == selected_question:
-                        return answer
-            else:
-                return "抱歉，我无法理解你的选择。"
+                print(f"{idx + 1}. {match} (匹配度：{score}%)")
+
+            while True:
+                choice = input("请输入对应的序号（输入 0 退出）：")
+                if choice.isdigit():
+                    choice = int(choice)
+                    if choice == 0:
+                        return "好的，取消选择。"
+                    elif 1 <= choice <= len(matches):
+                        selected_question = matches[choice - 1][0]
+                        for question, answer in questions:
+                            if question == selected_question:
+                                return answer
+                print("输入无效，请输入有效的序号。")
         else:
-            return "抱歉，我不太明白你的意思。"
+            return "抱歉，我无法理解你的问题。"
+
 
     @staticmethod
     def insert_into_knowledge_base(question, answer):

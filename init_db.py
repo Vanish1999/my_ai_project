@@ -32,6 +32,7 @@ def create_database():
     finally:
         conn.close()
 
+#创建未知问题表
 def create_unknown_questions_table():
     try:
         conn = DatabaseUtils.get_database_connection()  # 使用 DatabaseUtils 提供的静态方法
