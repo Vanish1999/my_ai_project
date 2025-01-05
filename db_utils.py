@@ -56,7 +56,7 @@ class DatabaseUtils:
 
         # 提取所有问题文本
         question_texts = [q[0] for q in questions]
-        matches = process.extract(user_question, question_texts, limit=5)  # 获取三个最接近的问题
+        matches = process.extract(user_question, question_texts, limit=5)  # 获取五个最接近的问题
 
         if matches[0][1] > 80:  # 高可信度直接返回答案
             for question, answer in questions:
