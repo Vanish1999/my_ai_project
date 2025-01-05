@@ -135,5 +135,14 @@ if __name__ == "__main__":
             print("5. 提问问题：输入问题，我会尝试回答！如果我不知道答案，我会记录下来。")
             print("6. 帮助：输入 '帮助' 查看这个提示列表。")
 
+        elif user_input.startswith("导入知识"):
+            file_path = user_input.split("导入知识", 1)[1].strip()
+            DatabaseUtils.import_knowledge_from_csv(file_path)
+
+        elif user_input.startswith("导出知识"):
+            file_path = user_input.split("导出知识", 1)[1].strip()
+            DatabaseUtils.export_knowledge_to_csv(file_path)
+
+
         else:
             print("抱歉，我不太明白你的意思呢。")

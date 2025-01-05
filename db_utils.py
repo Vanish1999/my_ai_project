@@ -1,5 +1,6 @@
 import sqlite3
 from fuzzywuzzy import process
+import csv
 
 # 数据库工具模块
 class DatabaseUtils:
@@ -148,3 +149,41 @@ class DatabaseUtils:
         else:
             print(f"未知问题 ID 为 {question_id} 的记录不存在。")
         conn.close()
+
+    @staticmethod
+    def import_knowledge_from_csv(file_path):
+        """
+        从 CSV 文件批量导入知识库
+        """
+        conn = DatabaseUtils.get_database_connection()
+        cursor = conn.cursor()
+        with open(file_path, newline='', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                question = row['question']
+                answer = row['answer']
+                cursor.execute("""
+                    INSERT INTO knowledge_base (question, answer)
+                    VALUES (?, ?)
+                    ON CONFLICT(question) DO NOTHING
+                """, (question, answer))
+        conn.commit()
+        conn.close()
+        print(f"知识库已从 {file_path} 导入！")
+        
+    @staticmethod
+    def export_knowledge_to_csv(file_path):
+        """
+        将知识库导出到 CSV 文件
+        """
+        conn = DatabaseUtils.get_database_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT question, answer FROM knowledge_base")
+        rows = cursor.fetchall()
+        conn.close()
+
+        with open(file_path, mode='w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['question', 'answer'])  # 写入表头
+            writer.writerows(rows)
+        print(f"知识库已导出到 {file_path}！")
