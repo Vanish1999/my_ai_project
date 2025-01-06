@@ -1,6 +1,35 @@
 from db_utils import DatabaseUtils
 import re
 
+class ContextManager:
+    """
+    管理对话的上下文，用于多轮对话
+    """
+    def __init__(self):
+        self.intent = None  # 记录用户的意图
+        self.key = None  # 记录关键字或上下文内容
+
+    def update_context(self, intent, key):
+        """
+        更新上下文
+        """
+        self.intent = intent
+        self.key = key
+
+    def clear_context(self):
+        """
+        清除上下文
+        """
+        self.intent = None
+        self.key = None
+
+    def get_context(self):
+        """
+        获取当前的上下文
+        """
+        return self.intent, self.key
+
+
 def extract_intent(user_input):
     """
     根据用户输入识别意图，并尝试提取具体关键字段
@@ -49,24 +78,47 @@ def handle_view_information(key):
     else:
         print("请输入要查看的具体内容，例如：查看名字")
 
-def handle_unknown_question(intent, key):
+def handle_unknown_question(intent, key, context_manager):
     """
     处理未知问题的删除和更新
     """
-    try:
-        question_id = int(key.split()[1])
-        if intent == "删除信息":
-            DatabaseUtils.delete_unknown_question_by_id(question_id)
-        elif intent == "更新信息":
-            answer = input(f"请输入未知问题 ID {question_id} 的答案：")
-            DatabaseUtils.move_unknown_question_to_knowledge_base(question_id, answer)
-    except (IndexError, ValueError):
-        print("请输入有效的未知问题 ID，例如：删除未知问题 1 或 更新未知问题 1")
+    if intent == "删除信息":
+        if "未知问题" in key:
+            try:
+                # 提取未知问题的ID
+                question_id = int(key.split()[1])
+                DatabaseUtils.delete_unknown_question_by_id(question_id)
+                context_manager.clear_context()
+            except (IndexError, ValueError):
+                print("请输入有效的未知问题 ID，例如：删除未知问题 1")
+                context_manager.update_context(intent, "未知问题")
+        else:
+            print("你想删除哪个未知问题呢？请输入 '删除未知问题 ID' 的格式")
+            context_manager.update_context(intent, "未知问题")
+
+    elif intent == "更新信息":
+        if "未知问题" in key:
+            try:
+                # 提取未知问题的ID
+                question_id = int(key.split()[1])
+                answer = input(f"请输入未知问题 ID {question_id} 的答案：")
+                DatabaseUtils.move_unknown_question_to_knowledge_base(question_id, answer)
+                context_manager.clear_context()
+            except (IndexError, ValueError):
+                print("请输入有效的未知问题 ID，例如：更新未知问题 1")
+                context_manager.update_context(intent, "未知问题")
+        else:
+            print("你想更新哪个未知问题呢？请输入 '更新未知问题 ID' 的格式")
+            context_manager.update_context(intent, "未知问题")
+
 
 # 主程序
 if __name__ == "__main__":
     DatabaseUtils.initialize_knowledge_base()  # 初始化知识库
     print("你好，我是你的学习小助手！告诉我你的信息，我会记住哦！")
+
+    # 初始化上下文管理器
+    context_manager = ContextManager()
 
     while True:
         user_input = input("你想对我说什么？（输入'退出'结束对话）: ")
@@ -76,37 +128,67 @@ if __name__ == "__main__":
 
         # 使用改进的意图解析
         intent, key = extract_intent(user_input)
+
+        # 如果意图为空，尝试从上下文补全
+        if intent == "未知" and key == "":
+            intent, key = context_manager.get_context()
+
+        # 更新或清除上下文
+        if intent and key:
+            context_manager.update_context(intent, key)
+        else:
+            context_manager.clear_context()
+
         print(f"调试信息 - 意图: {intent}, 关键字: {key}")  # 调试信息
 
+        # 处理不同的意图
         if intent == "查看信息":
-            handle_view_information(key)
+            if key:
+                handle_view_information(key)
+                context_manager.clear_context()  # 清除上下文
+            else:
+                print("请输入要查看的具体内容，例如：查看名字")
+                context_manager.update_context(intent, key)
 
-        elif key.startswith("未知问题"):
-            handle_unknown_question(intent, key)
+        elif key and key.startswith("未知问题"):
+            handle_unknown_question(intent, key, context_manager)
 
         elif intent == "更新信息":
-            if "是" in user_input:
-                try:
-                    key, value = user_input.split("是")[0][2:].strip(), user_input.split("是")[1].strip()
-                    DatabaseUtils.update_user_data(key, value)
-                except IndexError:
-                    print("更新信息格式错误，请输入类似‘更新爱好是绘画’的命令！")
+            if key:
+                if "是" in user_input:
+                    try:
+                        key, value = user_input.split("是")[0][2:].strip(), user_input.split("是")[1].strip()
+                        DatabaseUtils.update_user_data(key, value)
+                        context_manager.clear_context()  # 更新成功后清除上下文
+                    except IndexError:
+                        print("更新信息格式错误，请输入类似‘更新爱好是绘画’的命令！")
+                else:
+                    print("更新信息时请使用‘是’来分隔关键字和值，例如：更新名字是小凡")
+                    context_manager.update_context(intent, key)
             else:
-                print("更新信息时请使用‘是’来分隔关键字和值，例如：更新名字是小凡")
+                print("你想更新什么信息呢？例如：更新名字是小凡")
+                context_manager.update_context(intent, key)
 
         elif intent == "删除信息":
             if key:
                 DatabaseUtils.delete_user_data(key)
+                context_manager.clear_context()  # 删除成功后清除上下文
             else:
-                print("请输入要删除的具体内容，例如：删除名字")
+                print("你想删除什么信息呢？例如：删除名字")
+                context_manager.update_context(intent, key)
+
 
         elif intent == "计算":
             expression = key
             try:
                 result = eval(expression)
-                print(f"计算结果是：{result}")
+                if len(expression) > 10:
+                    print(f"哇！这么复杂的表达式，我动脑子算了下，答案是：{result}")
+                else:
+                    print(f"答案是：{result}")
             except Exception as e:
-                print(f"无法计算表达式。错误：{e}")
+                print(f"哎呀，这个表达式我算不出来呢！错误信息：{e}")
+
 
         elif intent == "问答":
             answer = DatabaseUtils.get_best_match_with_options(user_input)
@@ -115,10 +197,12 @@ if __name__ == "__main__":
                 DatabaseUtils.record_unknown_question(user_input)
             else:
                 print(answer)
+                context_manager.clear_context()  # 问答完成后清除上下文
 
         elif intent == "问候":
             print("你好呀！很高兴见到你！")
-        
+            context_manager.clear_context()
+
         elif intent == "帮助":
             print("这是我目前支持的功能列表：")
             print("1. 查看信息：输入类似 '查看名字' 或 '查看未知问题'。")
@@ -129,16 +213,8 @@ if __name__ == "__main__":
             print("6. 帮助：输入 '帮助' 查看这个提示列表。")
             print("7. 导入知识：输入 '导入知识 文件名.csv' 导入外部知识库。")
             print("8. 导出知识：输入 '导出知识 文件名.csv' 导出为外部知识库。")
-            
-
-        elif user_input.startswith("导入知识"):
-            file_path = user_input.split("导入知识", 1)[1].strip()
-            DatabaseUtils.import_knowledge_from_csv(file_path)
-
-        elif user_input.startswith("导出知识"):
-            file_path = user_input.split("导出知识", 1)[1].strip()
-            DatabaseUtils.export_knowledge_to_csv(file_path)
-
+            context_manager.clear_context()
 
         else:
             print("抱歉，我不太明白你的意思呢。")
+
